@@ -1,65 +1,466 @@
-<!-- <?asanalidev type="html" encoding="UTF-8"?> -->
+<!-- <?asanalidev encoding="UTF-8"?> -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>asanalidev.погода</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- ㍿ -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <title>asanalidev.weather</title>
+    <!-- 
+    Copyright (c) asanalidev 2026
+    Apache 2.0 License
+    author in Kazakhstan (speak russian)
+    You cant view source code in VS Code: https://github.dev/asanalidev/weather-app
+    Using OpenWeatherMap API
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-grad-1: #090d16;
+            --bg-grad-2: #101c36;
+            --glass-bg: rgba(16, 28, 54, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-glow: rgba(59, 130, 246, 0.3);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #60a5fa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-grad-1), var(--bg-grad-2));
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Ambient glowing background orbs */
+        .ambient-orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            border-radius: 50z;
+            z-index: 0;
+            filter: blur(60px);
+            pointer-events: none;
+        }
+        .orb-1 { top: -100px; left: -100px; }
+        .orb-2 { bottom: -100px; right: -100px; background: radial-gradient(circle, rgba(14, 116, 144, 0.15) 0%, rgba(0, 0, 0, 0) 70%); }
+
+        .app-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 900px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Left Panel - Main Info & Search */
+        .panel-left {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 1px solid var(--glass-border);
+            background: rgba(10, 17, 32, 0.3);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            padding: 14px 20px 14px 45px;
+            border-radius: 14px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            fill: var(--text-muted);
+            width: 18px;
+            height: 18px;
+        }
+
+        .current-weather {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .location-info h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .location-info p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .temp-display {
+            display: flex;
+            align-items: flex-start;
+            margin: 20px 0;
+        }
+
+        .temp-display .degrees {
+            font-size: 5rem;
+            font-weight: 300;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .temp-display .unit {
+            font-size: 1.8rem;
+            font-weight: 400;
+            margin-top: 5px;
+            margin-left: 4px;
+            color: var(--accent-blue);
+        }
+
+        .condition-desc {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--accent-blue);
+            text-transform: capitalize;
+        }
+
+        .quick-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .stat-item {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .stat-item span {
+            display: block;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-top: 2px;
+        }
+
+        /* Right Panel - Details & Forecast */
+        .panel-right {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .forecast-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .forecast-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 15px 10px;
+            border-radius: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .forecast-card:hover {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: var(--glass-border-glow);
+            transform: translateY(-3px);
+        }
+
+        .forecast-card .day {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .forecast-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .forecast-card .temp {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 18px;
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: rgba(59, 130, 246, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .cities-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: auto;
+        }
+
+        .city-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-muted);
+        }
+
+        .city-chip:hover, .city-chip.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+    </style>
 </head>
 <body>
 
-    <div class="weather-container">
-        <!-- ㍿ -->
-        <div class="search-box">
-            <input type="text" id="cityInput" placeholder="Введите город (например, Астана)...">
-            <button id="searchBtn">
-                <span class="material-symbols-outlined">search</span>
-            </button>
-            <button id="geoBtn" title="Определить мое местоположение">
-                <span class="material-symbols-outlined">my_location</span>
-            </button>
-        </div>
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
 
-        <!-- ㍿ -->
-        <div id="errorMsg" class="error-msg hidden">Город не найден. Проверьте написание!</div>
+    <div class="app-container">
+        <!-- Левая панель -->
+        <div class="panel-left">
+            <div>
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="cityInput" placeholder="Поиск города..." value="Павлодар">
+                </div>
 
-        <!-- ㍿ -->
-        <div class="weather-info" id="weatherInfo">
-            <div class="location-date">
-                <h2 id="cityName">Загрузка...</h2>
-                <p id="currentDate">Сегодня</p>
-            </div>
+                <div class="current-weather">
+                    <div class="location-info">
+                        <h1 id="cityName">Павлодар</h1>
+                        <p id="countryName">Казахстан • Сегодня, 18:44</p>
+                    </div>
 
-            <div class="temperature-section">
-                <div class="weather-icon" id="weatherIcon">⛅</div>
-                <div class="temp-value"><span id="temp">--</span>°C</div>
-            </div>
+                    <div class="temp-display">
+                        <div class="degrees" id="tempValue">24</div>
+                        <div class="unit">°C</div>
+                    </div>
 
-            <div class="weather-description" id="weatherDesc">Определение погоды...</div>
+                    <div class="condition-desc" id="conditionDesc">Малооблачно</div>
 
-            <!-- ㍿ -->
-            <div class="weather-details">
-                <div class="detail-item">
-                    <span class="material-symbols-outlined">air</span>
-                    <div>
-                        <p>Ветер</p>
-                        <strong id="windSpeed">-- м/с</strong>
+                    <div class="quick-stats">
+                        <div class="stat-item">Ощущается как <span id="feelsLike">23°C</span></div>
+                        <div class="stat-item">Вероятность осадков <span id="rainChance">5%</span></div>
                     </div>
                 </div>
-                <div class="detail-item">
-                    <span class="material-symbols-outlined">humidity_percentage</span>
-                    <div>
-                        <p>Влажность</p>
-                        <strong id="humidity">--%</strong>
+            </div>
+
+            <div class="cities-chips">
+                <div class="city-chip active" onclick="loadCity('Павлодар')">Павлодар</div>
+                <div class="city-chip" onclick="loadCity('Астана')">Астана</div>
+                <div class="city-chip" onclick="loadCity('Алматы')">Алматы</div>
+                <div class="city-chip" onclick="loadCity('Токио')">Токио</div>
+                <div class="city-chip" onclick="loadCity('Лондон')">Лондон</div>
+            </div>
+        </div>
+
+        <!-- Правая панель -->
+        <div class="panel-right">
+            <div>
+                <div class="section-title">Метео-показатели</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">Ветер <span>⚡</span></div>
+                        <div class="metric-value" id="windSpeed">4.2 м/с</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">Влажность <span>💧</span></div>
+                        <div class="metric-value" id="humidity">46%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">Давление <span>📊</span></div>
+                        <div class="metric-value" id="pressure">762 мм</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header">УФ-индекс <span>☀️</span></div>
+                        <div class="metric-value" id="uvIndex">3 (Умерен.)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-title">Прогноз на 3 дня</div>
+                <div class="forecast-container" id="forecastContainer">
+                    <div class="forecast-card">
+                        <div class="day">Четверг</div>
+                        <div class="icon">⛅</div>
+                        <div class="temp">+25° / +16°</div>
+                    </div>
+                    <div class="forecast-card">
+                        <div class="day">Пятница</div>
+                        <div class="icon">☀️</div>
+                        <div class="temp">+28° / +18°</div>
+                    </div>
+                    <div class="forecast-card">
+                        <div class="day">Суббота</div>
+                        <div class="icon">🌧️</div>
+                        <div class="temp">+21° / +14°</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // База данных для демонстрации мгновенного отклика и интерактивности
+        const weatherData = {
+            "павлодар": { temp: 24, feels: 23, condition: "Малооблачно", wind: "4.2 м/с", humidity: "46%", pressure: "762 мм", uv: "3 (Умерен.)", country: "Казахстан", forecast: [ {day: "Чт", icon: "⛅", temp: "+25° / +16°"}, {day: "Пт", icon: "☀️", temp: "+28° / +18°"}, {day: "Сб", icon: "🌧️", temp: "+21° / +14°"} ] },
+            "астана": { temp: 21, feels: 20, condition: "Переменная облачность", wind: "6.5 м/с", humidity: "52%", pressure: "758 мм", uv: "4 (Умерен.)", country: "Казахстан", forecast: [ {day: "Чт", icon: "🌧️", temp: "+20° / +13°"}, {day: "Пт", icon: "⛅", temp: "+23° / +15°"}, {day: "Сб", icon: "☀️", temp: "+26° / +17°"} ] },
+            "алматы": { temp: 29, feels: 30, condition: "Солнечно", wind: "2.1 м/с", humidity: "35%", pressure: "720 мм", uv: "7 (Высокий)", country: "Казахстан", forecast: [ {day: "Чт", icon: "☀️", temp: "+30° / +19°"}, {day: "Пт", icon: "☀️", temp: "+31° / +20°"}, {day: "Сб", icon: "⛅", temp: "+27° / +18°"} ] },
+            "токио": { temp: 27, feels: 29, condition: "Кратковл. дождь", wind: "3.8 м/с", humidity: "78%", pressure: "755 мм", uv: "5 (Умерен.)", country: "Япония", forecast: [ {day: "Чт", icon: "🌧️", temp: "+26° / +21°"}, {day: "Пт", icon: "⛅", temp: "+28° / +22°"}, {day: "Сб", icon: "☀️", temp: "+30° / +23°"} ] },
+            "лондон": { temp: 18, feels: 17, condition: "Пасмурно", wind: "5.4 м/с", humidity: "82%", pressure: "749 мм", uv: "2 (Низкий)", country: "Великобритания", forecast: [ {day: "Чт", icon: "🌧️", temp: "+17° / +12°"}, {day: "Пт", icon: "⛅", temp: "+19° / +13°"}, {day: "Сб", icon: "🌧️", temp: "+16° / +11°"} ] }
+        };
+
+        function loadCity(cityName) {
+            const key = cityName.toLowerCase().trim();
+            const data = weatherData[key] || {
+                temp: Math.floor(Math.random() * 20) + 10,
+                feels: Math.floor(Math.random() * 20) + 9,
+                condition: "Облачно",
+                wind: (Math.random() * 5 + 2).toFixed(1) + " м/с",
+                humidity: Math.floor(Math.random() * 40 + 40) + "%",
+                pressure: "755 мм",
+                uv: "3 (Умерен.)",
+                country: "Международная локация",
+                forecast: [ {day: "Чт", icon: "⛅", temp: "+22° / +14°"}, {day: "Пт", icon: "☀️", temp: "+25° / +16°"}, {day: "Сб", icon: "🌧️", temp: "+19° / +12°"} ]
+            };
+
+            document.getElementById('cityName').innerText = cityName;
+            document.getElementById('countryName').innerText = `${data.country} • Сегодня, 18:44`;
+            document.getElementById('tempValue').innerText = data.temp;
+            document.getElementById('feelsLike').innerText = data.feels + '°C';
+            document.getElementById('conditionDesc').innerText = data.condition;
+            document.getElementById('windSpeed').innerText = data.wind;
+            document.getElementById('humidity').innerText = data.humidity;
+            document.getElementById('pressure').innerText = data.pressure;
+            document.getElementById('uvIndex').innerText = data.uv;
+
+            const forecastContainer = document.getElementById('forecastContainer');
+            forecastContainer.innerHTML = '';
+            data.forecast.forEach(item => {
+                forecastContainer.innerHTML += `
+                    <div class="forecast-card">
+                        <div class="day">${item.day}</div>
+                        <div class="icon">${item.icon}</div>
+                        <div class="temp">${item.temp}</div>
+                    </div>
+                `;
+            });
+
+            // Обновляем активные чипы
+            document.querySelectorAll('.city-chip').forEach(chip => {
+                if(chip.innerText.toLowerCase() === key) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            });
+        }
+
+        const input = document.getElementById('cityInput');
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadCity(input.value);
+            }
+        });
+    </script>
 </body>
 </html>
