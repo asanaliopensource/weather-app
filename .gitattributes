@@ -1,2 +1,1 @@
-*.md linguist-detectable=false
-*.md linguist-language=Markdown
+*.xml linguist-detectable=false
